@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Controle de Temperatura e Umidade</title>
+
+<style>
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Segoe UI', Arial, sans-serif;
+  background: linear-gradient(135deg, #f0f4f8, #d9e2ec);
+  margin: 0;
+  padding: 20px;
+  display: flex;
+  justify-content: center;
+}
+
+.container {
+  background: white;
+  padding: 30px;
+  border-radius: 16px;
+  max-width: 1000px;
+  width: 100%;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+}
+
+h2, h3 {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+input {
+  width: 100%;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  border-radius: 10px;
+  border: 1px solid #ddd;
+  font-size: 15px;
+  transition: 0.2s;
+}
+
+input:focus {
+  border-color: #4a90e2;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(74,144,226,0.15);
+}
+
+button {
+  padding: 10px 18px;
+  border-radius: 10px;
+  border: none;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  margin: 5px 5px 10px 0;
+  transition: 0.2s;
+}
+
+button:hover {
+  transform: translateY(-1px);
+}
+
+#btnLogin, #btnSalvar {
+  background: #4a90e2;
+  color: white;
+}
+
+#btnLogout {
+  background: #e74c3c;
+  color: white;
+}
+
+#btnCSV {
+  background: #27ae60;
+  color: white;
+}
+
+#btnCriarUsuario {
+  background: #8e44ad;
+  color: white;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+}
+
+th {
+  background: #4a90e2;
+  color: white;
+  padding: 12px;
+  font-weight: 500;
+}
+
+td {
+  padding: 10px;
+  text-align: center;
+  border-bottom: 1px solid #eee;
+}
+
+tr:hover {
+  background: #f8fafc;
+}
+
+.admin-panel {
+  background: #f3f6fa;
+  padding: 20px;
+  border-radius: 12px;
+  margin-top: 25px;
+  box-shadow: inset 0 0 10px rgba(0,0,0,0.03);
+}
+
+@media (max-width: 768px) {
+
+  body {
+    padding: 10px;
+  }
+
+  .container {
+    padding: 20px 15px;
+    border-radius: 14px;
+  }
+
+  h2 {
+    font-size: 22px;
+  }
+
+  h3 {
+    font-size: 18px;
+  }
+
+  input {
+    font-size: 18px;
+    padding: 16px;
+    border-radius: 12px;
+  }
+
+  button {
+    width: 100%;
+    font-size: 18px;
+    padding: 16px;
+    margin: 8px 0;
+    border-radius: 12px;
+  }
+
+  table, thead, tbody, th, td, tr {
+    display: block;
+    width: 100%;
+  }
+
+  thead {
+    display: none;
+  }
+
+  tr {
+    margin-bottom: 18px;
+    padding: 15px;
+    border-radius: 14px;
+    background: white;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.06);
+  }
+
+  td {
+    font-size: 17px;
+    padding: 10px 0;
+    border: none;
+  }
+
+  td::before {
+    content: attr(data-label);
+    display: block;
+    font-weight: 600;
+    font-size: 14px;
+    margin-bottom: 3px;
+    color: #666;
+  }
+}
+</style>
+
+
+</head>
+<body>
+
+<div class="container">
+
+<h2>Controle de Temperatura e Umidade</h2>
+
+<div id="loginDiv">
+<input type="email" id="email" placeholder="Email">
+<input type="password" id="password" placeholder="Senha">
+<button id="btnLogin">Entrar</button>
+</div>
+
+<div id="appDiv" style="display:none">
+
+<button id="btnLogout">Sair</button>
+
+<h3>Novo Registro</h3>
+<input type="number" id="temp" placeholder="Temperatura (°C)">
+<input type="number" id="umi" placeholder="Umidade (%)">
+<input type="datetime-local" id="dataHora">
+<button id="btnSalvar">Salvar</button>
+
+<button id="btnCSV">Baixar CSV</button>
+
+<table>
+<thead>
+<tr>
+<th>Data/Hora</th>
+<th>Temp</th>
+<th>Umidade</th>
+<th>Usuário</th>
+<th>Ações</th>
+</tr>
+</thead>
+<tbody id="tabela"></tbody>
+</table>
+
+<div id="adminDiv" class="admin-panel" style="display:none">
+<h3>Painel Admin - Criar Usuário</h3>
+<input type="email" id="novoEmail" placeholder="Email">
+<input type="password" id="novaSenha" placeholder="Senha">
+<button id="btnCriarUsuario">Criar Usuário</button>
+</div>
+
+</div>
+</div>
+
+<script type="module">
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { getDatabase, ref, push, set, onValue, remove, update, get } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBPzCMPdw4aoA27_AqnvGkNhDc2flkK9QM",
+  authDomain: "controletemumi.firebaseapp.com",
+  databaseURL: "https://controletemumi-default-rtdb.firebaseio.com",
+  projectId: "controletemumi",
+  storageBucket: "controletemumi.firebasestorage.app",
+  messagingSenderId: "599539401138",
+  appId: "1:599539401138:web:a8124bb9dd0835697464ab",
+  measurementId: "G-EEPLTCLSCP"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getDatabase(app);
+
+const loginDiv = document.getElementById("loginDiv");
+const appDiv = document.getElementById("appDiv");
+const adminDiv = document.getElementById("adminDiv");
+const tabela = document.getElementById("tabela");
+
+let editandoId = null;
+
+document.getElementById("btnLogin").onclick = () => {
+  signInWithEmailAndPassword(auth, email.value, password.value)
+  .catch(e => alert(e.message));
+};
+
+document.getElementById("btnLogout").onclick = () => signOut(auth);
+
+onAuthStateChanged(auth, async user => {
+  if(user){
+    loginDiv.style.display="none";
+    appDiv.style.display="block";
+
+    const snap = await get(ref(db, "users/"+user.uid));
+    if(snap.exists() && snap.val().role==="admin"){
+      adminDiv.style.display="block";
+    } else {
+      adminDiv.style.display="none";
+    }
+
+    carregar();
+  } else {
+    loginDiv.style.display="block";
+    appDiv.style.display="none";
+  }
+});
+
+document.getElementById("btnSalvar").onclick = async () => {
+
+  if(!temp.value || !umi.value || !dataHora.value){
+    alert("Preencha todos os campos");
+    return;
+  }
+
+  if(editandoId){
+    await update(ref(db,"registros/"+editandoId),{
+      temperatura: temp.value,
+      umidade: umi.value,
+      dataHora: dataHora.value
+    });
+    editandoId = null;
+  } else {
+    const novoRef = push(ref(db,"registros"));
+    await set(novoRef,{
+      temperatura: temp.value,
+      umidade: umi.value,
+      dataHora: dataHora.value,
+      usuario: auth.currentUser.email,
+      uid: auth.currentUser.uid
+    });
+  }
+
+  temp.value="";
+  umi.value="";
+  dataHora.value="";
+};
+
+function carregar(){
+  onValue(ref(db,"registros"), snap=>{
+    tabela.innerHTML="";
+    snap.forEach(child=>{
+      const d = child.val();
+      tabela.innerHTML+=`
+        <tr>
+          <td>${d.dataHora}</td>
+          <td>${d.temperatura}</td>
+          <td>${d.umidade}</td>
+          <td>${d.usuario}</td>
+          <td>
+            <button onclick="window.editar('${child.key}')">Editar</button>
+            <button onclick="window.excluir('${child.key}')">Excluir</button>
+          </td>
+        </tr>`;
+    });
+  });
+}
+
+window.excluir = id => {
+  remove(ref(db,"registros/"+id));
+};
+
+window.editar = async id => {
+  const snap = await get(ref(db,"registros/"+id));
+  const d = snap.val();
+  temp.value = d.temperatura;
+  umi.value = d.umidade;
+  dataHora.value = d.dataHora;
+  editandoId = id;
+};
+
+document.getElementById("btnCriarUsuario").onclick = async () => {
+  const cred = await createUserWithEmailAndPassword(auth, novoEmail.value, novaSenha.value);
+  await set(ref(db,"users/"+cred.user.uid),{
+    email: novoEmail.value,
+    role:"user"
+  });
+  alert("Usuário criado");
+};
+
+document.getElementById("btnCSV").onclick = async () => {
+  const snap = await get(ref(db,"registros"));
+
+  let registros = [];
+
+  snap.forEach(child=>{
+    registros.push(child.val());
+  });
+
+  registros.sort((a,b)=> new Date(a.dataHora) - new Date(b.dataHora));
+
+  let csv = "Data;Hora;Temperatura (°C);Umidade (%);Usuário\n";
+
+  registros.forEach(d=>{
+    const dataObj = new Date(d.dataHora);
+    const data = dataObj.toLocaleDateString("pt-BR");
+    const hora = dataObj.toLocaleTimeString("pt-BR");
+
+    csv += `${data};${hora};${d.temperatura};${d.umidade};${d.usuario}\n`;
+  });
+
+  const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "registros_temperatura_umidade.csv";
+  a.click();
+};
+
+</script>
+
+</body>
+</html>
