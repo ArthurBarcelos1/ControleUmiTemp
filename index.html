@@ -225,7 +225,13 @@ input[type="datetime-local"] {
 <h3>Novo Registro</h3>
 <input type="number" id="temp" placeholder="Temperatura (°C)">
 <input type="number" id="umi" placeholder="Umidade (%)">
-<input class="DateTime" type="datetime-local" id="dataHora">
+<input class="DateTime"
+       type="text"
+       id="dataHora"
+       placeholder="Clique para selecionar data e hora"
+       onfocus="this.type='datetime-local'"
+       onblur="if(!this.value)this.type='text'">
+
 <button id="btnSalvar">Salvar</button>
 
 <button id="btnCSV">Baixar CSV</button>
