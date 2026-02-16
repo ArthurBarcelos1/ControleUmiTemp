@@ -6,6 +6,12 @@
 <title>Controle de Temperaturas</title>
 
 <style>
+  input[type="date"],
+  input[type="time"]{
+  appearance:none;
+  -webkit-appearance:none;
+}
+
 *{box-sizing:border-box}
 body{
   font-family:'Segoe UI',Arial,sans-serif;
@@ -80,8 +86,8 @@ td{padding:10px;text-align:center;border-bottom:1px solid #eee}
 </div>
 
 <div class="form-grid" style="margin-top:12px;">
-  <input type="date" id="data">
-  <input type="time" id="hora">
+  <input type="text" id="data" placeholder="Insira a data aqui" inputmode="numeric">
+  <input type="text" id="hora" placeholder="Insira o horário aqui" inputmode="numeric">
 </div>
 
 <button id="btnSalvar">Salvar</button>
@@ -164,6 +170,19 @@ appDiv.style.display="none";
 }
 });
 
+data.addEventListener("input", e => {
+  let v = e.target.value.replace(/\D/g,"");
+  if(v.length > 2) v = v.slice(0,2)+"/"+v.slice(2);
+  if(v.length > 5) v = v.slice(0,5)+"/"+v.slice(5,9);
+  e.target.value = v;
+});
+
+hora.addEventListener("input", e => {
+  let v = e.target.value.replace(/\D/g,"");
+  if(v.length > 2) v = v.slice(0,2)+":"+v.slice(2,4);
+  e.target.value = v;
+});
+
 function formatarData(d){
 if(!d)return"-";
 const[a,m,day]=d.split("-");
@@ -179,13 +198,20 @@ tempAtual:tempAtual.value,
 tempMin:tempMin.value,
 tempMax:tempMax.value,
 umidade:umi.value,
-data:data.value,
-hora:hora.value,
+data: converterDataParaISO(data.value),
+hora: hora.value,
 usuarioNome:userData?.nome||auth.currentUser.email,
 uid:auth.currentUser.uid
 });
 tempAtual.value=tempMin.value=tempMax.value=umi.value=data.value=hora.value="";
 };
+
+function converterDataParaISO(dataBR){
+  if(!dataBR) return "";
+  const [dia,mes,ano] = dataBR.split("/");
+  return `${ano}-${mes}-${dia}`;
+}
+
 
 function carregar(){
 onValue(ref(db,"registros"),snap=>{
