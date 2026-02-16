@@ -151,6 +151,7 @@ const db = getDatabase(app);
 
 let userData = null;
 let usuarioEditandoUID = null;
+let registroEditandoId = null;
 
 btnLogin.onclick=()=>signInWithEmailAndPassword(auth,email.value,password.value).catch(e=>alert(e.message));
 btnLogout.onclick=()=>signOut(auth);
@@ -189,28 +190,49 @@ const[a,m,day]=d.split("-");
 return `${day}/${m}/${a}`;
 }
 
-btnSalvar.onclick=async()=>{
-if(!tempAtual.value||!tempMin.value||!tempMax.value||!umi.value||!data.value||!hora.value){
-alert("Preencha todos os campos");return;
-}
-await set(push(ref(db,"registros")),{
-tempAtual:tempAtual.value,
-tempMin:tempMin.value,
-tempMax:tempMax.value,
-umidade:umi.value,
-data: converterDataParaISO(data.value),
-hora: hora.value,
-usuarioNome:userData?.nome||auth.currentUser.email,
-uid:auth.currentUser.uid
-});
-tempAtual.value=tempMin.value=tempMax.value=umi.value=data.value=hora.value="";
-};
-
 function converterDataParaISO(dataBR){
   if(!dataBR) return "";
-  const [dia,mes,ano] = dataBR.split("/");
+  const partes = dataBR.split("/");
+  if(partes.length !== 3) return "";
+  const [dia, mes, ano] = partes;
   return `${ano}-${mes}-${dia}`;
 }
+
+btnSalvar.onclick = async () => {
+
+  if(!tempAtual.value || !tempMin.value || !tempMax.value || !umi.value || !data.value || !hora.value){
+    alert("Preencha todos os campos");
+    return;
+  }
+
+  const dados = {
+    tempAtual: tempAtual.value,
+    tempMin: tempMin.value,
+    tempMax: tempMax.value,
+    umidade: umi.value,
+    data: converterDataParaISO(data.value),
+    hora: hora.value,
+    usuarioNome: userData?.nome || auth.currentUser.email,
+    uid: auth.currentUser.uid
+  };
+
+  if(registroEditandoId){
+    await update(ref(db,"registros/"+registroEditandoId), dados);
+    registroEditandoId = null;
+    btnSalvar.textContent = "Salvar";
+  } else {
+    await set(push(ref(db,"registros")), dados);
+  }
+
+  // limpar
+  tempAtual.value = "";
+  tempMin.value = "";
+  tempMax.value = "";
+  umi.value = "";
+  data.value = "";
+  hora.value = "";
+};
+
 
 
 function carregar(){
@@ -228,7 +250,8 @@ tabela.innerHTML+=`
 <td data-label="Umidade">${d.umidade}</td>
 <td data-label="Funcionário">${d.usuarioNome||"-"}</td>
 <td data-label="Ações">
-<button onclick="window.excluir('${child.key}')">Excluir</button>
+  <button onclick="window.editarRegistro('${child.key}')">Editar</button>
+  <button onclick="window.excluir('${child.key}')">Excluir</button>
 </td>
 </tr>`;
 });
@@ -294,6 +317,29 @@ btnCriarUsuario.onclick = async () => {
   } catch(e){
     alert(e.message);
   }
+};
+
+window.editarRegistro = async (id) => {
+  const snap = await get(ref(db,"registros/"+id));
+  const d = snap.val();
+
+  registroEditandoId = id;
+
+  tempAtual.value = d.tempAtual || "";
+  tempMin.value = d.tempMin || "";
+  tempMax.value = d.tempMax || "";
+  umi.value = d.umidade || "";
+
+  if(d.data){
+    const [ano, mes, dia] = d.data.split("-");
+    data.value = `${dia}/${mes}/${ano}`;
+  } else {
+    data.value = "";
+  }
+
+  hora.value = d.hora || "";
+
+  btnSalvar.textContent = "Atualizar Registro";
 };
 
 
