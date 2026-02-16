@@ -1,10 +1,10 @@
-const CACHE_NAME = "TempUmi-v1";
+const CACHE_NAME = "TempUmi-v2";
 
 const FILES_TO_CACHE = [
   "./",
   "./index.html",
   "./manifest.json",
-  "./service-worker.json",
+  "./service-worker.js",
   "./icon-192.png",
   "./icon-512.png"
 ];
