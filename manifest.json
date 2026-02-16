@@ -1,6 +1,6 @@
 {
-  "name": "Site temperatura e umidade",
-  "short_name": "Site Temp & Umi",
+  "name": "Temp & Umi",
+  "short_name": "Temp & Umi",
   "description": "Site medidor de temperatura e umidade",
   "start_url": "./index.html",
   "display": "standalone",
