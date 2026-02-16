@@ -1,4 +1,4 @@
-const CACHE_NAME = "TempUmi-v2";
+const CACHE_NAME = "TempUmi-v3";
 
 const FILES_TO_CACHE = [
   "./",
