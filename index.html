@@ -574,10 +574,10 @@ btnCSV.onclick = async () => {
     extension: "png"
   });
 
-  worksheet.addImage(imageId, {
-    tl: { col: 0, row: 0 },
-    br: { col: 2, row: 2 }
-  });
+worksheet.addImage(imageId, {
+  tl: { col: 0, row: 0 },
+  ext: { width: 180, height: 63 } // 180 / 2.85 ≈ 63
+});
 
   worksheet.mergeCells("C1:H2");
 
