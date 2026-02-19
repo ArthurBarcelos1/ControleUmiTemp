@@ -50,6 +50,62 @@ td{padding:10px;text-align:center;border-bottom:1px solid #eee}
 .admin-panel{
   background:#f3f6fa;padding:20px;border-radius:12px;margin-top:25px;
 }
+.local-box{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  margin-bottom:15px;
+}
+
+.local-box input{
+  flex:1;
+}
+
+#btnCriarLocal{
+  background:#4a90e2;
+  color:white;
+}
+
+.lista-locais{
+  background:white;
+  border-radius:12px;
+  padding:10px;
+  box-shadow:0 4px 12px rgba(0,0,0,0.05);
+}
+
+select{
+  width:100%;
+  padding:12px;
+  border-radius:10px;
+  border:1px solid #ddd;
+  font-size:15px;
+  margin-bottom:12px;
+  background:white;
+}
+
+.lista-locais div{
+  padding:12px;
+  border-bottom:1px solid #eee;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+
+.lista-locais div:last-child{
+  border-bottom:none;
+}
+
+.lista-locais button{
+  background:#4a90e2;
+  color:white;
+  font-size:12px;
+  padding:6px 12px;
+}
+
+.lista-locais button:last-child{
+  background:#e74c3c;
+}
+
 @media(max-width:900px){
   .form-grid{grid-template-columns:1fr}
   button{width:100%}
@@ -95,6 +151,9 @@ td{padding:10px;text-align:center;border-bottom:1px solid #eee}
 <div class="form-grid" style="margin-top:12px;">
   <input type="text" id="data" placeholder="Insira a data aqui" inputmode="numeric">
   <input type="text" id="hora" placeholder="Insira o horário aqui" inputmode="numeric">
+  <select id="localSelect">
+    <option class="InputTag" value="">Selecione o Local</option>
+  </select>
 </div>
 
 <button id="btnSalvar">Salvar</button>
@@ -109,6 +168,7 @@ td{padding:10px;text-align:center;border-bottom:1px solid #eee}
 <th>Temp Min</th>
 <th>Temp Max</th>
 <th>Umidade</th>
+<th>Local</th>
 <th>Funcionário</th>
 <th>Ações</th>
 </tr>
@@ -129,6 +189,16 @@ td{padding:10px;text-align:center;border-bottom:1px solid #eee}
 </div>
 
 <button id="btnCriarUsuario">Salvar Usuário</button>
+
+<h3 style="margin-top:25px;">Gerenciar Locais</h3>
+
+<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
+  <input type="text" id="novoLocal" placeholder="Nome do Local (ex: Armazém N1)">
+  <button id="btnCriarLocal">Salvar Local</button>
+</div>
+
+<div id="listaLocais"></div>
+
 
 <h3 style="margin-top:25px;">Usuários Cadastrados</h3>
 <div id="listaUsuarios"></div>
@@ -159,9 +229,85 @@ const db = getDatabase(app);
 let userData = null;
 let usuarioEditandoUID = null;
 let registroEditandoId = null;
+let localEditandoId = null;
 
 btnLogin.onclick=()=>signInWithEmailAndPassword(auth,email.value,password.value).catch(e=>alert(e.message));
 btnLogout.onclick=()=>signOut(auth);
+
+btnCriarLocal.onclick = async () => {
+
+  if(!novoLocal.value){
+    alert("Informe o nome do local");
+    return;
+  }
+
+  if(localEditandoId){
+    await update(ref(db,"locais/"+localEditandoId), {
+      nome: novoLocal.value
+    });
+
+    localEditandoId = null;
+    btnCriarLocal.textContent = "Salvar Local";
+  } else {
+    await set(push(ref(db,"locais")), {
+      nome: novoLocal.value
+    });
+  }
+
+  novoLocal.value = "";
+  listarLocais();
+};
+
+async function listarLocais(){
+  const snap = await get(ref(db,"locais"));
+  listaLocais.innerHTML = "";
+
+  snap.forEach(child=>{
+    const l = child.val();
+
+    listaLocais.innerHTML += `
+      <div style="padding:8px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;">
+        <div>${l.nome}</div>
+        <div style="display:flex;gap:6px;">
+          <button onclick="window.editarLocal('${child.key}')">Editar</button>
+          <button onclick="window.excluirLocal('${child.key}')">Excluir</button>
+        </div>
+      </div>
+    `;
+  });
+
+  carregarLocaisSelect();
+}
+
+window.editarLocal = async (id) => {
+  const snap = await get(ref(db,"locais/"+id));
+  const l = snap.val();
+
+  localEditandoId = id;
+  novoLocal.value = l.nome;
+  btnCriarLocal.textContent = "Atualizar Local";
+};
+
+window.excluirLocal = async (id) => {
+  if(confirm("Excluir local?")){
+    await remove(ref(db,"locais/"+id));
+    listarLocais();
+  }
+};
+
+async function carregarLocaisSelect(){
+  const snap = await get(ref(db,"locais"));
+  localSelect.innerHTML = `<option value="">Selecione o Local</option>`;
+
+  snap.forEach(child=>{
+    const l = child.val();
+
+    localSelect.innerHTML += `
+      <option value="${l.nome}">${l.nome}</option>
+    `;
+  });
+}
+
 
 onAuthStateChanged(auth,async user=>{
 if(user){
@@ -172,6 +318,7 @@ userData=snap.val()||{};
 adminDiv.style.display=userData.role==="admin"?"block":"none";
 if(userData.role==="admin")listarUsuarios();
 carregar();
+listarLocais();
 }else{
 loginDiv.style.display="block";
 appDiv.style.display="none";
@@ -207,7 +354,7 @@ function converterDataParaISO(dataBR){
 
 btnSalvar.onclick = async () => {
 
-  if(!tempAtual.value || !tempMin.value || !tempMax.value || !umi.value || !data.value || !hora.value){
+  if(!tempAtual.value || !tempMin.value || !tempMax.value || !umi.value || !data.value || !hora.value || !localSelect.value){
     alert("Preencha todos os campos");
     return;
   }
@@ -219,6 +366,7 @@ btnSalvar.onclick = async () => {
     umidade: umi.value,
     data: converterDataParaISO(data.value),
     hora: hora.value,
+    local: localSelect.value,
     usuarioNome: userData?.nome || auth.currentUser.email,
     uid: auth.currentUser.uid
   };
@@ -231,13 +379,13 @@ btnSalvar.onclick = async () => {
     await set(push(ref(db,"registros")), dados);
   }
 
-  // limpar
   tempAtual.value = "";
   tempMin.value = "";
   tempMax.value = "";
   umi.value = "";
   data.value = "";
   hora.value = "";
+  localSelect.value = "";
 };
 
 
@@ -255,6 +403,7 @@ tabela.innerHTML+=`
 <td data-label="Temp Min">${d.tempMin}</td>
 <td data-label="Temp Max">${d.tempMax}</td>
 <td data-label="Umidade">${d.umidade}</td>
+<td data-label="Local">${d.local || "-"}</td>
 <td data-label="Funcionário">${d.usuarioNome||"-"}</td>
 <td data-label="Ações">
   <button onclick="window.editarRegistro('${child.key}')">Editar</button>
@@ -264,6 +413,7 @@ tabela.innerHTML+=`
 });
 });
 }
+
 window.excluir=id=>remove(ref(db,"registros/"+id));
 
 btnCriarUsuario.onclick = async () => {
@@ -395,19 +545,130 @@ listarUsuarios();
 }
 };
 
-btnCSV.onclick=async()=>{
-const snap=await get(ref(db,"registros"));
-let csv="Data;Hora;Temp Atual;Temp Min;Temp Max;Umidade;Funcionário\n";
-snap.forEach(child=>{
-const d=child.val();
-csv+=`${formatarData(d.data)};${d.hora};${d.tempAtual};${d.tempMin};${d.tempMax};${d.umidade};${d.usuarioNome}\n`;
-});
-const blob=new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8;"});
-const a=document.createElement("a");
-a.href=URL.createObjectURL(blob);
-a.download="relatorio_temperaturas.csv";
-a.click();
+btnCSV.onclick = async () => {
+
+  const snap = await get(ref(db, "registros"));
+
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet("Relatório");
+
+  const hoje = new Date();
+  const dataHoje =
+    String(hoje.getDate()).padStart(2, "0") + "/" +
+    String(hoje.getMonth() + 1).padStart(2, "0") + "/" +
+    hoje.getFullYear();
+
+  worksheet.mergeCells("A1:B2");
+
+  const response = await fetch("logo.png");
+  const blob = await response.blob();
+
+  const base64Logo = await new Promise(resolve => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result);
+    reader.readAsDataURL(blob);
+  });
+
+  const imageId = workbook.addImage({
+    base64: base64Logo,
+    extension: "png"
+  });
+
+  worksheet.addImage(imageId, {
+    tl: { col: 0, row: 0 },
+    br: { col: 2, row: 2 }
+  });
+
+  worksheet.mergeCells("C1:H2");
+
+  worksheet.getCell("C1").value =
+    "FORMULÁRIO PARA REGISTRO DE TEMPERATURA E UMIDADE DO AMBIENTE";
+
+  worksheet.getCell("C1").alignment = {
+    horizontal: "center",
+    vertical: "middle"
+  };
+
+  worksheet.getCell("C1").font = { bold: true, size: 14 };
+
+  worksheet.mergeCells("I1:I2");
+
+  worksheet.getCell("I1").value =
+    `FOR 05\nPOP 10\nRevisão 00`;
+
+  worksheet.getCell("I1").value =
+    `FOR 05\nPOP 10\nRevisão 00\n${dataHoje}`;
+
+
+  worksheet.getCell("I1").alignment = {
+    horizontal: "center",
+    vertical: "middle",
+    wrapText: true
+  };
+
+  worksheet.getCell("I1").font = { bold: true };
+
+  const headers = [
+    "Data", "Hora", "Temp Atual", "Temp Min", "Temp Max",
+    "Umidade", "Funcionário", "Local", "Ação Corretiva"
+  ];
+  worksheet.addRow(headers);
+
+  const headerRow = worksheet.lastRow;
+
+  headerRow.eachCell(cell => {
+    cell.alignment = { horizontal: "center", vertical: "middle" };
+    cell.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FFADD8E6" }
+    };
+    cell.font = { bold: true };
+  });
+
+  snap.forEach(child => {
+    const d = child.val();
+
+    const row = worksheet.addRow([
+      formatarData(d.data),
+      d.hora,
+      d.tempAtual,
+      d.tempMin,
+      d.tempMax,
+      d.umidade,
+      d.usuarioNome,
+      d.local || "",
+      d.acaoCorretiva || ""
+    ]);
+
+    row.eachCell(cell => {
+      cell.alignment = { horizontal: "center", vertical: "middle" };
+    });
+  });
+
+  worksheet.columns = [
+    { width: 15 },
+    { width: 12 },
+    { width: 15 },
+    { width: 15 },
+    { width: 15 },
+    { width: 15 },
+    { width: 25 },
+    { width: 25 },
+    { width: 40 }
+  ];
+
+  worksheet.getRow(1).height = 35;
+  worksheet.getRow(2).height = 35;
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  saveAs(new Blob([buffer]), "relatorio_temperaturas.xlsx");
 };
+
+
 </script>
+<script src="https://cdn.jsdelivr.net/npm/exceljs/dist/exceljs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/file-saver/dist/FileSaver.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 </body>
 </html>
