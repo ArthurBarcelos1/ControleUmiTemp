@@ -1,11 +1,12 @@
-const CACHE_NAME = "TempUmi-v7";
+const CACHE_NAME = "TempUmi-v8";
 
 const FILES_TO_CACHE = [
   "./",
   "./index.html",
   "./manifest.json",
   "./icon-192.png",
-  "./logo.png",
+  "./logo1.png",
+  "./logo2.png",
   "./icon-512.png"
 ];
 

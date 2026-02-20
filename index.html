@@ -33,8 +33,22 @@ body{
 h2,h3{text-align:center;margin-bottom:20px}
 .form-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
 input{
-  width:100%;padding:12px;border-radius:10px;
-  border:1px solid #ddd;font-size:15px;margin-bottom:12px;
+  width:100%;
+  padding:12px;
+  border-radius:10px;
+  border:1px solid #ddd;
+  font-size:16px;
+  margin-bottom:12px;
+}
+
+select{
+  width:100%;
+  padding:12px;
+  border-radius:10px;
+  border:1px solid #ddd;
+  font-size:16px;
+  margin-bottom:12px;
+  background:white;
 }
 button{
   padding:10px 18px;border-radius:10px;border:none;
@@ -43,6 +57,7 @@ button{
 #btnLogin,#btnSalvar{background:#4a90e2;color:white}
 #btnLogout{background:#e74c3c;color:white}
 #btnCSV{background:#27ae60;color:white}
+#btnDownload{background:#0e5bb3;color:white}
 #btnCriarUsuario{background:#8e44ad;color:white}
 table{width:100%;border-collapse:collapse;margin-top:20px}
 th{background:#4a90e2;color:white;padding:12px}
@@ -149,15 +164,22 @@ select{
 </div>
 
 <div class="form-grid" style="margin-top:12px;">
-  <input type="text" id="data" placeholder="Insira a data aqui" inputmode="numeric">
+  <input type="text" id="data" placeholder="DD/MM" inputmode="numeric">
   <input type="text" id="hora" placeholder="Insira o horário aqui" inputmode="numeric">
   <select id="localSelect">
-    <option class="InputTag" value="">Selecione o Local</option>
+    <option value="">Selecione o Local</option>
+  </select>
+  <select id="empresaSelect">
+    <option value="">Selecione a Empresa</option>
+    <option value="Marca Maior">Marca Maior</option>
+    <option value="Grandes Marcas">Grandes Marcas</option>
   </select>
 </div>
 
 <button id="btnSalvar">Salvar</button>
 <button id="btnCSV">Baixar XLSX</button>
+<button id="btnDownload" id="btnMarcaMaior">Baixar XLSX - Marca Maior</button>
+<button id="btnDownload" id="btnGrandesMarcas">Baixar XLSX - Grandes Marcas</button>
 
 <table>
 <thead>
@@ -169,6 +191,7 @@ select{
 <th>Temp Max</th>
 <th>Umidade</th>
 <th>Local</th>
+<th>Empresa</th>
 <th>Funcionário</th>
 <th>Ações</th>
 </tr>
@@ -327,9 +350,8 @@ appDiv.style.display="none";
 
 data.addEventListener("input", e => {
   let v = e.target.value.replace(/\D/g,"");
-  if(v.length > 2) v = v.slice(0,2)+"/"+v.slice(2);
-  if(v.length > 5) v = v.slice(0,5)+"/"+v.slice(5,9);
-  e.target.value = v;
+  if(v.length > 2) v = v.slice(0,2)+"/"+v.slice(2,4);
+  e.target.value = v.slice(0,5);
 });
 
 hora.addEventListener("input", e => {
@@ -347,17 +369,16 @@ return `${day}/${m}/${a}`;
 function converterDataParaISO(dataBR){
   if(!dataBR) return "";
   const partes = dataBR.split("/");
-  if(partes.length !== 3) return "";
-  const [dia, mes, ano] = partes;
-  return `${ano}-${mes}-${dia}`;
+  if(partes.length !== 2) return "";
+  const [dia, mes] = partes;
+  return `2025-${mes}-${dia}`;
 }
-
 btnSalvar.onclick = async () => {
 
-  if(!tempAtual.value || !tempMin.value || !tempMax.value || !umi.value || !data.value || !hora.value || !localSelect.value){
-    alert("Preencha todos os campos");
-    return;
-  }
+if(!tempAtual.value || !tempMin.value || !tempMax.value || !umi.value || !data.value || !hora.value || !localSelect.value || !empresaSelect.value){
+  alert("Preencha todos os campos");
+  return;
+}
 
   const dados = {
     tempAtual: tempAtual.value,
@@ -367,6 +388,7 @@ btnSalvar.onclick = async () => {
     data: converterDataParaISO(data.value),
     hora: hora.value,
     local: localSelect.value,
+    empresa: empresaSelect.value,
     usuarioNome: userData?.nome || auth.currentUser.email,
     uid: auth.currentUser.uid
   };
@@ -386,6 +408,7 @@ btnSalvar.onclick = async () => {
   data.value = "";
   hora.value = "";
   localSelect.value = "";
+  empresaSelect.value = "";
 };
 
 
@@ -404,6 +427,7 @@ tabela.innerHTML+=`
 <td data-label="Temp Max">${d.tempMax}</td>
 <td data-label="Umidade">${d.umidade}</td>
 <td data-label="Local">${d.local || "-"}</td>
+<td data-label="Empresa">${d.empresa || "-"}</td>
 <td data-label="Funcionário">${d.usuarioNome||"-"}</td>
 <td data-label="Ações">
   <button onclick="window.editarRegistro('${child.key}')">Editar</button>
@@ -486,6 +510,7 @@ window.editarRegistro = async (id) => {
   tempMin.value = d.tempMin || "";
   tempMax.value = d.tempMax || "";
   umi.value = d.umidade || "";
+  empresaSelect.value = d.empresa || "";
 
   if(d.data){
     const [ano, mes, dia] = d.data.split("-");
@@ -545,6 +570,136 @@ listarUsuarios();
 }
 };
 
+btnMarcaMaior.onclick = () => {
+  gerarRelatorioPorEmpresa("Marca Maior", "logo1.png");
+};
+
+btnGrandesMarcas.onclick = () => {
+  gerarRelatorioPorEmpresa("Grandes Marcas", "logo2.png");
+};
+
+async function gerarRelatorioPorEmpresa(nomeEmpresa, logoArquivo){
+
+  const snap = await get(ref(db, "registros"));
+
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet("Relatório");
+
+  const hoje = new Date();
+  const dataHoje =
+    String(hoje.getDate()).padStart(2, "0") + "/" +
+    String(hoje.getMonth() + 1).padStart(2, "0") + "/" +
+    hoje.getFullYear();
+
+  const response = await fetch(logoArquivo);
+  const blob = await response.blob();
+
+  const base64Logo = await new Promise(resolve => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result);
+    reader.readAsDataURL(blob);
+  });
+
+  const imageId = workbook.addImage({
+    base64: base64Logo,
+    extension: "png"
+  });
+
+  worksheet.addImage(imageId, {
+    tl: { col: 0, row: 0 },
+    ext: { width: 180, height: 63 }
+  });
+
+  worksheet.getCell("C1").value =
+    "FORMULÁRIO PARA REGISTRO DE TEMPERATURA E UMIDADE DO AMBIENTE";
+
+  worksheet.getCell("C1").alignment = {
+    horizontal: "center",
+    vertical: "middle"
+  };
+
+  worksheet.getCell("C1").font = { bold: true, size: 14 };
+
+worksheet.mergeCells("A1:B2");
+worksheet.mergeCells("C1:H2");
+worksheet.mergeCells("I1:J2");
+
+  worksheet.getCell("I1").value =
+    `FOR 05\nPOP 10\nRevisão 00\n${dataHoje}`;
+
+  worksheet.getCell("I1").alignment = {
+    horizontal: "center",
+    vertical: "middle",
+    wrapText: true
+  };
+
+  worksheet.getCell("I1").font = { bold: true };
+
+  const headers = [
+    "Data", "Hora", "Temp Atual", "Temp Min", "Temp Max",
+    "Umidade", "Funcionário", "Local"
+  ];
+
+  worksheet.addRow(headers);
+
+const headerRow = worksheet.lastRow;
+
+headerRow.eachCell(cell => {
+  cell.alignment = { horizontal: "center", vertical: "middle" };
+  cell.fill = {
+    type: "pattern",
+    pattern: "solid",
+    fgColor: { argb: "FFADD8E6" }
+  };
+  cell.font = { bold: true };
+  cell.border = {
+    top: { style: "thin" },
+    left: { style: "thin" },
+    bottom: { style: "thin" },
+    right: { style: "thin" }
+  };
+});
+
+  snap.forEach(child => {
+    const d = child.val();
+
+    if(d.empresa === nomeEmpresa){
+
+      const row = worksheet.addRow([
+        formatarData(d.data),
+        d.hora,
+        d.tempAtual,
+        d.tempMin,
+        d.tempMax,
+        d.umidade,
+        d.usuarioNome,
+        d.local || ""
+      ]);
+
+      row.eachCell(cell => {
+        cell.alignment = { horizontal: "center", vertical: "middle" };
+      });
+    }
+  });
+
+  worksheet.columns = [
+    { width: 15 },
+    { width: 12 },
+    { width: 15 },
+    { width: 15 },
+    { width: 15 },
+    { width: 15 },
+    { width: 25 },
+    { width: 25 }
+  ];
+
+  worksheet.getRow(1).height = 35;
+  worksheet.getRow(2).height = 35;
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  saveAs(new Blob([buffer]), `relatorio_${nomeEmpresa}.xlsx`);
+}
+
 btnCSV.onclick = async () => {
 
   const snap = await get(ref(db, "registros"));
@@ -558,9 +713,13 @@ btnCSV.onclick = async () => {
     String(hoje.getMonth() + 1).padStart(2, "0") + "/" +
     hoje.getFullYear();
 
-  worksheet.mergeCells("A1:B2");
+  let logoArquivo = "logo1.png";
 
-  const response = await fetch("logo.png");
+if(empresaSelect.value === "Grandes Marcas"){
+  logoArquivo = "logo2.png";
+}
+
+const response = await fetch(logoArquivo);
   const blob = await response.blob();
 
   const base64Logo = await new Promise(resolve => {
@@ -579,8 +738,6 @@ worksheet.addImage(imageId, {
   ext: { width: 180, height: 63 } // 180 / 2.85 ≈ 63
 });
 
-  worksheet.mergeCells("C1:H2");
-
   worksheet.getCell("C1").value =
     "FORMULÁRIO PARA REGISTRO DE TEMPERATURA E UMIDADE DO AMBIENTE";
 
@@ -590,8 +747,6 @@ worksheet.addImage(imageId, {
   };
 
   worksheet.getCell("C1").font = { bold: true, size: 14 };
-
-  worksheet.mergeCells("I1:I2");
 
   worksheet.getCell("I1").value =
     `FOR 05\nPOP 10\nRevisão 00`;
@@ -642,8 +797,14 @@ worksheet.addImage(imageId, {
     ]);
 
     row.eachCell(cell => {
-      cell.alignment = { horizontal: "center", vertical: "middle" };
-    });
+  cell.alignment = { horizontal: "center", vertical: "middle" };
+  cell.border = {
+    top: { style: "thin" },
+    left: { style: "thin" },
+    bottom: { style: "thin" },
+    right: { style: "thin" }
+  };
+});
   });
 
   worksheet.columns = [
