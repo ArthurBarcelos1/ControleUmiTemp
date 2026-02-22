@@ -56,8 +56,7 @@ button{
 }
 #btnLogin,#btnSalvar{background:#4a90e2;color:white}
 #btnLogout{background:#e74c3c;color:white}
-#btnCSV{background:#27ae60;color:white}
-#btnDownload{background:#0e5bb3;color:white}
+#btnMarcaMaior, #btnGrandesMarcas{background:#27ae60;color:white}
 #btnCriarUsuario{background:#8e44ad;color:white}
 table{width:100%;border-collapse:collapse;margin-top:20px}
 th{background:#4a90e2;color:white;padding:12px}
@@ -160,7 +159,9 @@ select{
   <input type="number" id="tempAtual" placeholder="Temp Atual (°C)">
   <input type="number" id="tempMin" placeholder="Temp Mínima (°C)">
   <input type="number" id="tempMax" placeholder="Temp Máxima (°C)">
-  <input type="number" id="umi" placeholder="Umidade (%)">
+  <input type="number" id="umiAtual" placeholder="Umidade Atual (%)">
+  <input type="number" id="umiMin" placeholder="Umidade Mínima (%)">
+  <input type="number" id="umiMax" placeholder="Umidade Máxima (%)">
 </div>
 
 <div class="form-grid" style="margin-top:12px;">
@@ -177,9 +178,8 @@ select{
 </div>
 
 <button id="btnSalvar">Salvar</button>
-<button id="btnCSV">Baixar XLSX</button>
-<button id="btnDownload" id="btnMarcaMaior">Baixar XLSX - Marca Maior</button>
-<button id="btnDownload" id="btnGrandesMarcas">Baixar XLSX - Grandes Marcas</button>
+<button id="btnMarcaMaior">Baixar XLSX - Marca Maior</button>
+<button id="btnGrandesMarcas">Baixar XLSX - Grandes Marcas</button>
 
 <table>
 <thead>
@@ -189,7 +189,9 @@ select{
 <th>Temp Atual</th>
 <th>Temp Min</th>
 <th>Temp Max</th>
-<th>Umidade</th>
+<th>Umi Atual</th>
+<th>Umi Min</th>
+<th>Umi Max</th>
 <th>Local</th>
 <th>Empresa</th>
 <th>Funcionário</th>
@@ -368,15 +370,21 @@ return `${day}/${m}/${a}`;
 
 function converterDataParaISO(dataBR){
   if(!dataBR) return "";
+
   const partes = dataBR.split("/");
   if(partes.length !== 2) return "";
+
   const [dia, mes] = partes;
-  return `2025-${mes}-${dia}`;
+
+  const anoAtual = new Date().getFullYear();
+
+  return `${anoAtual}-${mes.padStart(2,"0")}-${dia.padStart(2,"0")}`;
 }
+
 btnSalvar.onclick = async () => {
 
-if(!tempAtual.value || !tempMin.value || !tempMax.value || !umi.value || !data.value || !hora.value || !localSelect.value || !empresaSelect.value){
-  alert("Preencha todos os campos");
+  if(!tempAtual.value || !tempMin.value || !tempMax.value || !umiAtual.value || !umiMin.value || !umiMax.value || !data.value || !hora.value || !localSelect.value || !empresaSelect.value){
+    alert("Preencha todos os campos");
   return;
 }
 
@@ -384,7 +392,9 @@ if(!tempAtual.value || !tempMin.value || !tempMax.value || !umi.value || !data.v
     tempAtual: tempAtual.value,
     tempMin: tempMin.value,
     tempMax: tempMax.value,
-    umidade: umi.value,
+    umidadeAtual: umiAtual.value,
+    umidadeMin: umiMin.value,
+    umidadeMax: umiMax.value,
     data: converterDataParaISO(data.value),
     hora: hora.value,
     local: localSelect.value,
@@ -404,7 +414,9 @@ if(!tempAtual.value || !tempMin.value || !tempMax.value || !umi.value || !data.v
   tempAtual.value = "";
   tempMin.value = "";
   tempMax.value = "";
-  umi.value = "";
+  umiAtual.value = "";
+  umiMin.value = "";
+  umiMax.value = "";
   data.value = "";
   hora.value = "";
   localSelect.value = "";
@@ -425,7 +437,9 @@ tabela.innerHTML+=`
 <td data-label="Temp Atual">${d.tempAtual}</td>
 <td data-label="Temp Min">${d.tempMin}</td>
 <td data-label="Temp Max">${d.tempMax}</td>
-<td data-label="Umidade">${d.umidade}</td>
+<td data-label="Umi Atual">${d.umidadeAtual || "-"}</td>
+<td data-label="Umi Min">${d.umidadeMin || "-"}</td>
+<td data-label="Umi Max">${d.umidadeMax || "-"}</td>
 <td data-label="Local">${d.local || "-"}</td>
 <td data-label="Empresa">${d.empresa || "-"}</td>
 <td data-label="Funcionário">${d.usuarioNome||"-"}</td>
@@ -501,25 +515,34 @@ btnCriarUsuario.onclick = async () => {
 };
 
 window.editarRegistro = async (id) => {
+
   const snap = await get(ref(db,"registros/"+id));
   const d = snap.val();
 
   registroEditandoId = id;
 
   tempAtual.value = d.tempAtual || "";
-  tempMin.value = d.tempMin || "";
-  tempMax.value = d.tempMax || "";
-  umi.value = d.umidade || "";
+  tempMin.value   = d.tempMin || "";
+  tempMax.value   = d.tempMax || "";
+
+  umiAtual.value = d.umidadeAtual || "";
+  umiMin.value   = d.umidadeMin || "";
+  umiMax.value   = d.umidadeMax || "";
+
   empresaSelect.value = d.empresa || "";
+
+  setTimeout(() => {
+    localSelect.value = d.local || "";
+  }, 200);
+
+  hora.value = d.hora || "";
 
   if(d.data){
     const [ano, mes, dia] = d.data.split("-");
-    data.value = `${dia}/${mes}/${ano}`;
+    data.value = `${dia}/${mes}`;
   } else {
     data.value = "";
   }
-
-  hora.value = d.hora || "";
 
   btnSalvar.textContent = "Atualizar Registro";
 };
@@ -570,11 +593,11 @@ listarUsuarios();
 }
 };
 
-btnMarcaMaior.onclick = () => {
+document.getElementById("btnMarcaMaior").onclick = () => {
   gerarRelatorioPorEmpresa("Marca Maior", "logo1.png");
 };
 
-btnGrandesMarcas.onclick = () => {
+document.getElementById("btnGrandesMarcas").onclick = () => {
   gerarRelatorioPorEmpresa("Grandes Marcas", "logo2.png");
 };
 
@@ -637,7 +660,8 @@ worksheet.mergeCells("I1:J2");
 
   const headers = [
     "Data", "Hora", "Temp Atual", "Temp Min", "Temp Max",
-    "Umidade", "Funcionário", "Local"
+    "Umi Atual", "Umi Min", "Umi Max",
+    "Funcionário", "Local"
   ];
 
   worksheet.addRow(headers);
@@ -665,16 +689,18 @@ headerRow.eachCell(cell => {
 
     if(d.empresa === nomeEmpresa){
 
-      const row = worksheet.addRow([
-        formatarData(d.data),
-        d.hora,
-        d.tempAtual,
-        d.tempMin,
-        d.tempMax,
-        d.umidade,
-        d.usuarioNome,
-        d.local || ""
-      ]);
+const row = worksheet.addRow([
+  formatarData(d.data),
+  d.hora,
+  d.tempAtual,
+  d.tempMin,
+  d.tempMax,
+  d.umidadeAtual,
+  d.umidadeMin,
+  d.umidadeMax,
+  d.usuarioNome,
+  d.local || ""
+]);
 
       row.eachCell(cell => {
         cell.alignment = { horizontal: "center", vertical: "middle" };
@@ -690,6 +716,8 @@ headerRow.eachCell(cell => {
     { width: 15 },
     { width: 15 },
     { width: 25 },
+    { width: 25 },
+    { width: 25 },
     { width: 25 }
   ];
 
@@ -699,133 +727,6 @@ headerRow.eachCell(cell => {
   const buffer = await workbook.xlsx.writeBuffer();
   saveAs(new Blob([buffer]), `relatorio_${nomeEmpresa}.xlsx`);
 }
-
-btnCSV.onclick = async () => {
-
-  const snap = await get(ref(db, "registros"));
-
-  const workbook = new ExcelJS.Workbook();
-  const worksheet = workbook.addWorksheet("Relatório");
-
-  const hoje = new Date();
-  const dataHoje =
-    String(hoje.getDate()).padStart(2, "0") + "/" +
-    String(hoje.getMonth() + 1).padStart(2, "0") + "/" +
-    hoje.getFullYear();
-
-  let logoArquivo = "logo1.png";
-
-if(empresaSelect.value === "Grandes Marcas"){
-  logoArquivo = "logo2.png";
-}
-
-const response = await fetch(logoArquivo);
-  const blob = await response.blob();
-
-  const base64Logo = await new Promise(resolve => {
-    const reader = new FileReader();
-    reader.onloadend = () => resolve(reader.result);
-    reader.readAsDataURL(blob);
-  });
-
-  const imageId = workbook.addImage({
-    base64: base64Logo,
-    extension: "png"
-  });
-
-worksheet.addImage(imageId, {
-  tl: { col: 0, row: 0 },
-  ext: { width: 180, height: 63 } // 180 / 2.85 ≈ 63
-});
-
-  worksheet.getCell("C1").value =
-    "FORMULÁRIO PARA REGISTRO DE TEMPERATURA E UMIDADE DO AMBIENTE";
-
-  worksheet.getCell("C1").alignment = {
-    horizontal: "center",
-    vertical: "middle"
-  };
-
-  worksheet.getCell("C1").font = { bold: true, size: 14 };
-
-  worksheet.getCell("I1").value =
-    `FOR 05\nPOP 10\nRevisão 00`;
-
-  worksheet.getCell("I1").value =
-    `FOR 05\nPOP 10\nRevisão 00\n${dataHoje}`;
-
-
-  worksheet.getCell("I1").alignment = {
-    horizontal: "center",
-    vertical: "middle",
-    wrapText: true
-  };
-
-  worksheet.getCell("I1").font = { bold: true };
-
-  const headers = [
-    "Data", "Hora", "Temp Atual", "Temp Min", "Temp Max",
-    "Umidade", "Funcionário", "Local", "Ação Corretiva"
-  ];
-  worksheet.addRow(headers);
-
-  const headerRow = worksheet.lastRow;
-
-  headerRow.eachCell(cell => {
-    cell.alignment = { horizontal: "center", vertical: "middle" };
-    cell.fill = {
-      type: "pattern",
-      pattern: "solid",
-      fgColor: { argb: "FFADD8E6" }
-    };
-    cell.font = { bold: true };
-  });
-
-  snap.forEach(child => {
-    const d = child.val();
-
-    const row = worksheet.addRow([
-      formatarData(d.data),
-      d.hora,
-      d.tempAtual,
-      d.tempMin,
-      d.tempMax,
-      d.umidade,
-      d.usuarioNome,
-      d.local || "",
-      d.acaoCorretiva || ""
-    ]);
-
-    row.eachCell(cell => {
-  cell.alignment = { horizontal: "center", vertical: "middle" };
-  cell.border = {
-    top: { style: "thin" },
-    left: { style: "thin" },
-    bottom: { style: "thin" },
-    right: { style: "thin" }
-  };
-});
-  });
-
-  worksheet.columns = [
-    { width: 15 },
-    { width: 12 },
-    { width: 15 },
-    { width: 15 },
-    { width: 15 },
-    { width: 15 },
-    { width: 25 },
-    { width: 25 },
-    { width: 40 }
-  ];
-
-  worksheet.getRow(1).height = 35;
-  worksheet.getRow(2).height = 35;
-
-  const buffer = await workbook.xlsx.writeBuffer();
-  saveAs(new Blob([buffer]), "relatorio_temperaturas.xlsx");
-};
-
 
 </script>
 <script src="https://cdn.jsdelivr.net/npm/exceljs/dist/exceljs.min.js"></script>
