@@ -1,4 +1,4 @@
-const CACHE_NAME = "TempUmi-v9";
+const CACHE_NAME = "TempUmi-v10";
 
 const FILES_TO_CACHE = [
   "./",
@@ -40,4 +40,5 @@ self.addEventListener("fetch", event => {
       return response || fetch(event.request);
     })
   );
+
 });
