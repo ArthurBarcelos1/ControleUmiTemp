@@ -1,4 +1,4 @@
-const CACHE_NAME = "TempUmi-v10";
+const CACHE_NAME = "TempUmi-v11";
 
 const FILES_TO_CACHE = [
   "./",
@@ -7,6 +7,7 @@ const FILES_TO_CACHE = [
   "./icon-192.png",
   "./logo1.png",
   "./logo2.png",
+  "./logo.webp",
   "./icon-512.png"
 ];
 
@@ -40,5 +41,4 @@ self.addEventListener("fetch", event => {
       return response || fetch(event.request);
     })
   );
-
 });
